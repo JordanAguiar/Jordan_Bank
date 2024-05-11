@@ -1,5 +1,4 @@
 from abc import ABC, abstractclassmethod, abstractproperty
-import datetime
 import textwrap
 
 class Cliente:
@@ -21,16 +20,16 @@ class PessoaFisica(Cliente):
         self.cpf = cpf 
 
 class Conta:
-    def __init__(self, numero, cliente):
+    def __init__(self, numero, usuario):
         self._saldo = 0
         self._numero = numero
         self._agencia = "0001"
-        self._cliente = cliente
+        self._usuario = usuario
         self._historico = Historico()
     
     @classmethod
-    def nova_conta(cls, cliente, numero):
-        return cls(numero, cliente)
+    def nova_conta(cls, usuario, numero):
+        return cls(numero, usuario)
     
     @property
     def saldo(self):
@@ -45,14 +44,14 @@ class Conta:
         return self._agencia
     
     @property 
-    def cliente(self):
-        return self._cliente
+    def usuario(self):
+        return self._usuario
     
     @property
     def historico(self):
         return self._historico
     
-    def sacar(self, valor):
+    def saque(self, valor):
         saldo = self.saldo
         excedeu_saldo = valor > saldo
 
@@ -60,7 +59,9 @@ class Conta:
             print("\n@@@ Operação falhou! Você não tem saldo suficiente. @@@")
         
         elif valor > 0:
+            self._saldo -= valor
             print("\n=== Saque realizado com sucesso! ===")
+            return True
         
         else:
             print("\n@@@ Operação falhou! O valor infrmado é inválido. @@@")
@@ -78,12 +79,12 @@ class Conta:
         return True
     
 class ContaCorrente(Conta):
-    def __init__(self, numero, cliente, limite=500, limite_saques=3):
-        super().__init__(numero,cliente)
+    def __init__(self, numero, usuario, limite=500, limite_saques=3):
+        super().__init__(numero, usuario)
         self.limite = limite
         self.limite_saques = limite_saques
         
-    def sacar(self, valor):
+    def saque(self, valor):
         
         numero_saques = len(
             [transacao for transacao in self.historico.transacoes if transacao["tipo"] == Saque.__name__]
@@ -98,14 +99,14 @@ class ContaCorrente(Conta):
             print("\n@@@ Operação falhou! Número máximo de saques excedido. @@@")
         
         else:
-            return super().sacar(valor)
+            return super().saque(valor)
         
         return False
     def __str__(self):
         return f"""\
             Agência:\t{self.agencia}
             C/C:\t\t{self.numero}
-            Titular:\t{self.cliente}
+            Titular:\t{self.usuario.nome}
         """
 
 class Historico:
@@ -121,7 +122,6 @@ class Historico:
             {   
                 "tipo": transacao.__class__.__name__,
                 "valor": transacao.valor,
-                "data": datetime.now().strftime("%d-%m-%Y %H:%M:%s"),
             }
         )
 
@@ -130,7 +130,7 @@ class Transacao(ABC):
     @abstractproperty
     def valor(self):
         pass
-    
+        
     @abstractclassmethod
     def registrar(self, conta):
         pass    
@@ -144,7 +144,7 @@ class Saque(Transacao):
         return self._valor
     
     def registrar(self, conta):
-        sucesso_transacao = conta.sacar(self.valor)
+        sucesso_transacao = conta.saque(self.valor)
 
         if sucesso_transacao:
             conta.historico.adicionar_transacao(self)
@@ -208,12 +208,13 @@ def saque(usuarios):
   
 def e_extrato(usuarios):
     cpf = input("Informe o CPF do usuario: ")
-    usuarios = filtragem(cpf,usuarios)
-    if not usuarios:
+    usuario = filtragem(cpf,usuarios)
+    if not usuario:
         print("\@@@ Usuário não encontrado! @@@")
         return
     
-    conta = recuperar_conta_usuario
+    conta = recuperar_conta_usuario(usuario)
+
     if not conta:
         return
     
@@ -255,7 +256,7 @@ def recuperar_conta_usuario(usuarios):
     if not usuarios.contas:
         print("\n@@@ Cliente não possui conta! @@@")
         return
-    return usuarios.conta[0]
+    return usuarios.contas[0]
 
 def criar_conta(contas, numero_conta, usuarios):
     cpf = input("Informe o CPF do usuário: ")
@@ -272,7 +273,7 @@ def criar_conta(contas, numero_conta, usuarios):
 def listar_contas(contas):
     for conta in contas:        
         print("=" * 100)
-        print(textwrap.dedent(conta))
+        print(textwrap.dedent(str(conta)))
 
 def main():
     usuarios=[]
